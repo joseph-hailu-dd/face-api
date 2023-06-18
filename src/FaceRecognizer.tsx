@@ -9,28 +9,30 @@ import {
   resizeResults,
   draw
 } from 'face-api.js'
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import Webcam from 'react-webcam'
 import { useInterval } from './hooks'
 
 const referenceImages: { label: string; uri: string }[] = [
-    { label: 'Joseph Hailu', uri: './me.jpg' },
-    { label: 'Nicolas Cage', uri: './Nicolas_Cage.jpeg' },
-    { label: 'Nicolas Cage', uri: './Nicolas_Cage.webp' }
-  ]
-  
-  const videoConstraints = {
-    width: 200,
-    height: 200,
-    facingMode: 'user'
-  }
+  { label: 'Joseph Hailu', uri: './me.jpg' },
+  { label: 'Nicolas Cage', uri: './Nicolas_Cage.jpeg' },
+  { label: 'Nicolas Cage', uri: './Nicolas_Cage.webp' }
+]
+
+const videoConstraints = {
+  width: 200,
+  height: 200,
+  facingMode: 'user'
+}
 
 export default function FaceRecognizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const webcamRef = useRef<Webcam>(null)
   const faceDetectorInstance = useRef<FaceMatcher | null>(null)
-
+  const context = canvasRef.current?.getContext('2d', {
+    willReadFrequently: true
+  })
   /** use this to periodically collect 'stills' from the webcam and feed into facedector */
   const [img, setImg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -76,14 +78,9 @@ export default function FaceRecognizer() {
 
     loadModelsAndBuildFaceMatcher()
   }, [])
-
-  const capture = useCallback(() => {
+  useInterval(() => {
     const imageSrc = webcamRef.current?.getScreenshot() ?? ''
     setImg(imageSrc)
-  }, [])
-
-  useInterval(() => {
-    capture()
   }, 3000)
 
   /**
@@ -93,7 +90,7 @@ export default function FaceRecognizer() {
   async function handleImageLoad() {
     const image = imgRef.current
     const canvas = canvasRef.current
-    if (image && canvas) {
+    if (image && canvas && context) {
       const detections = await detectAllFaces(image)
         .withFaceLandmarks()
         .withFaceDescriptors()
@@ -101,9 +98,8 @@ export default function FaceRecognizer() {
         height: canvas.height,
         width: canvas.width
       })
-      const context = canvas.getContext('2d')
-      context?.clearRect(0, 0, canvas.width, canvas.height)
-      context?.drawImage(image, 0, 0, canvas.width, canvas.height)
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
 
       if (!detections.length) {
         setDetectedPerson((prev) => {
@@ -137,7 +133,6 @@ export default function FaceRecognizer() {
   }
   return (
     <>
-      {' '}
       <Webcam
         audio={false}
         ref={webcamRef}
@@ -154,7 +149,7 @@ export default function FaceRecognizer() {
         onLoad={handleImageLoad}
       />
       <h3>Person: {detectedPerson.person}</h3>
-      <h3>Score: {detectedPerson.score}</h3>
+      <h3>Euclidean Distance (lower is better): {detectedPerson.score}</h3>
       <canvas ref={canvasRef} height={200} width={200}></canvas>
     </>
   )
