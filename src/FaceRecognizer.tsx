@@ -1,11 +1,9 @@
 import {
   FaceMatcher,
   nets,
-  TNetInput,
   fetchImage,
   detectSingleFace,
   LabeledFaceDescriptors,
-  detectAllFaces,
   resizeResults,
   draw
 } from 'face-api.js'
@@ -56,7 +54,7 @@ export default function FaceRecognizer() {
         // the FaceMatcher instance
         const labeledDescriptors = await Promise.all(
           referenceImages.map(async (imgConfig) => {
-            const referenceImage: TNetInput = await fetchImage(imgConfig.uri)
+            const referenceImage = await fetchImage(imgConfig.uri)
             const result = await detectSingleFace(referenceImage)
               .withFaceLandmarks()
               .withFaceDescriptor()
@@ -91,17 +89,14 @@ export default function FaceRecognizer() {
     const image = imgRef.current
     const canvas = canvasRef.current
     if (image && canvas && context) {
-      const detections = await detectAllFaces(image)
+      const detection = await detectSingleFace(image)
         .withFaceLandmarks()
-        .withFaceDescriptors()
-      const resizedDimensions = resizeResults(detections, {
-        height: canvas.height,
-        width: canvas.width
-      })
+        .withFaceDescriptor()
+
       context.clearRect(0, 0, canvas.width, canvas.height)
       context.drawImage(image, 0, 0, canvas.width, canvas.height)
 
-      if (!detections.length) {
+      if (!detection) {
         setDetectedPerson((prev) => {
           return {
             ...prev,
@@ -111,19 +106,21 @@ export default function FaceRecognizer() {
         })
         return
       }
-      draw.drawDetections(canvas, resizedDimensions)
+      const resizedDimensions = resizeResults(detection, {
+        height: canvas.height,
+        width: canvas.width
+      })
+      draw.drawDetections(canvas, [resizedDimensions?.detection])
       // person recognition from all faces in current screenshot
-      detections.forEach((fd) => {
-        const bestMatch = faceDetectorInstance.current?.findBestMatch(
-          fd.descriptor
-        )
-        setDetectedPerson((prev) => {
-          return {
-            ...prev,
-            score: bestMatch?.distance ?? 0,
-            person: bestMatch?.label ?? ''
-          }
-        })
+      const bestMatch = faceDetectorInstance.current?.findBestMatch(
+        detection.descriptor
+      )
+      setDetectedPerson((prev) => {
+        return {
+          ...prev,
+          score: bestMatch?.distance ?? 0,
+          person: bestMatch?.label ?? ''
+        }
       })
     }
   }
