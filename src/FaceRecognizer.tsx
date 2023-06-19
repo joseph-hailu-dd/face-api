@@ -23,6 +23,12 @@ const videoConstraints = {
   facingMode: 'user'
 }
 
+/**
+ * This component must have the <Webcam/>
+ * positioned so it is 'visible' on screen to start taking screenshots
+ *
+ * @returns
+ */
 export default function FaceRecognizer() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -76,6 +82,10 @@ export default function FaceRecognizer() {
 
     loadModelsAndBuildFaceMatcher()
   }, [])
+
+  /**
+   * sets the img src and kicks off the onLoad callback every 3 seconds
+   */
   useInterval(() => {
     const imageSrc = webcamRef.current?.getScreenshot() ?? ''
     setImg(imageSrc)
